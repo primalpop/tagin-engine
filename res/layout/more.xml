@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:orientation="vertical" android:layout_width="fill_parent"
+	android:layout_height="fill_parent" android:background="@color/ghost_white"
+	android:gravity="center">
+	<LinearLayout android:layout_width="fill_parent"
+		android:layout_height="fill_parent" android:layout_weight="1"
+		android:gravity="center" android:orientation="vertical"
+		android:id="@+id/More_Container">
+		<ViewFlipper android:id="@+id/More_ViewFlipper"
+			android:layout_width="fill_parent"
+			android:layout_height="fill_parent"
+			android:outAnimation="@anim/push_left_out"
+			android:inAnimation="@anim/push_left_in">
+			<TextView android:layout_height="fill_parent"
+				android:layout_width="fill_parent" android:padding="16dip"
+				android:id="@+id/More_TextView01" android:textSize="18sp"
+				android:textColor="@color/black"
+				android:text="@string/intro"/>
+			<TextView android:layout_height="fill_parent"
+				android:layout_width="fill_parent" android:padding="16dip"
+				android:id="@+id/More_TextView02" android:textSize="18sp"
+				android:textColor="@color/black"
+				android:text="@string/howto"/>
+		</ViewFlipper>
+	</LinearLayout>
+	<LinearLayout android:layout_width="fill_parent"
+		android:gravity="center" android:paddingBottom="8dip"
+		android:paddingTop="12dip" android:layout_height="wrap_content"
+		android:background="@color/dim_gray">
+		<Button android:layout_width="wrap_content"
+			android:layout_height="wrap_content" android:paddingLeft="20dip"
+			android:paddingRight="20dip" android:id="@+id/More_Button01"
+			android:text="@string/next"></Button>
+			<Button android:layout_width="wrap_content"
+			android:layout_height="wrap_content" android:paddingLeft="20dip"
+			android:paddingRight="20dip" android:id="@+id/More_Button02"
+			android:text="Start Logging"></Button>		
+	</LinearLayout>
+</LinearLayout>

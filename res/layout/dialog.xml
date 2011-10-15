@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="wrap_content" 
+	android:layout_height="wrap_content"
+	android:orientation = "vertical"
+	android:minWidth="300dip"
+	>
+	<TextView 
+	android:layout_width="wrap_content" 
+ 	android:layout_height="wrap_content"	
+	android:text="Monitor"
+	android:textSize="18sp"
+	android:layout_gravity="center_horizontal"
+	
+	/>
+	<ImageView 
+	android:id="@+id/Dialog_ImageView01"
+ 	android:layout_width="wrap_content" 
+ 	android:layout_height="wrap_content"
+ 	android:layout_gravity="center_horizontal"
+ 	/>
+ 		 	
+	<TableLayout 
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:stretchColumns="1">   
+    <TextView
+            android:text="Current FingerPrint Details"
+            android:textSize="17sp"
+            android:layout_gravity="center_horizontal"
+            android:padding="3dip" />     
+     <TableRow>
+        <TextView
+            android:id="@+id/Dialog_TextView01"
+            android:gravity="center_horizontal"
+            android:padding="3dip" />
+    </TableRow>
+    <TableRow>
+        <TextView
+            android:id="@+id/Dialog_TextView02"
+            android:gravity="center_horizontal"
+            android:padding="3dip" />
+    </TableRow>
+    <View
+        android:layout_height="2dip"
+        android:background="#FF909090" />
+     <TextView
+            android:text="Previous FingerPrint Details"
+            android:textSize="17sp"
+            android:layout_gravity="center_horizontal"
+            android:padding="3dip" />     
+     <TableRow>
+        <TextView
+            android:id="@+id/Dialog_TextView03"
+            android:gravity="center_horizontal"
+            android:padding="3dip" />
+    </TableRow>
+    
+    <TableRow>
+        <TextView
+            android:id="@+id/Dialog_TextView04"
+            android:gravity="center_horizontal"
+            android:padding="3dip" />
+    </TableRow>
+    <View
+        android:layout_height="2dip"
+        android:background="#FF909090" />
+    <TableRow>
+           <TextView
+            android:id="@+id/Dialog_TextView05"
+            android:textSize="17sp"
+            android:text="Distance Meter"
+            android:gravity="center_horizontal"
+            android:padding="3dip" />
+    </TableRow>
+	</TableLayout>
+ 	<LinearLayout
+		android:id="@+id/LinearLayout02"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal">
+	<ToggleButton 
+		android:id="@+id/Dialog_toggleButton01"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:checked="true"
+       	android:textOn="ON"
+       	android:textOff="OFF"
+        android:layout_weight="1"/>
+	<ToggleButton 
+		android:id="@+id/Dialog_toggleButton02"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:checked="true"
+       	android:textOn="IN PLACE"
+       	android:textOff="Moving"
+       	android:layout_weight="1"/> 	
+ 	</LinearLayout>
+ </LinearLayout>
