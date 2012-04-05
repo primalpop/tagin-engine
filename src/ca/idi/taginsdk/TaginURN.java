@@ -117,6 +117,19 @@ public class TaginURN extends Service implements Runnable {
 		}	
 	};
 	
+
+	/**
+	 * Returns k (if present) closest neighbours to actual fingerprint
+	 * @param k
+	 * @return list of closest neighbours
+	 */
+	public ArrayList<Neighbour> getKClosestNeighbours(int k){
+		 Arrays.sort(neighbours);
+		 int length = neighbours.length;
+		 int adj = k<=length ? k : length;
+		 return new ArrayList<Neighbour>(Arrays.asList(neighbours).subList(0, adj));
+	}
+	
 	/**
 	 * Returns a newly generated URN or modified existing URN.
 	 */

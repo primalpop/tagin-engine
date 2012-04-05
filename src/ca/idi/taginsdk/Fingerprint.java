@@ -199,9 +199,17 @@ public class Fingerprint {
 	
 	
 	public int getMaxRSSI() {
+
 		// Make sure limit RSSI values are still valid
-		Arrays.sort(mBeacons);
-		return mBeacons[0].getRSSI();
+
+		// beacons array length check
+		if (mBeacons.length == 0){
+			return 0;
+		}
+		else {
+			Arrays.sort(mBeacons);
+			return mBeacons[0].getRSSI();
+		}
 	}
 	
 	/**
