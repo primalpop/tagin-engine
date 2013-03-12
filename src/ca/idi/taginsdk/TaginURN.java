@@ -24,6 +24,9 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
 
+import com.parse.Parse;
+import com.parse.ParseObject;
+
 /**
  * Tagin Engine which generates/manages Uniform Resource Names(URNs).
  */
@@ -42,6 +45,7 @@ public class TaginURN extends Service implements Runnable {
 	private Handler mHandler;	
 	
 	public static final String ACTION_URN_READY = "ca.idi.taginsdk.action.URN_READY";
+	//TODO: Is it okay to have the two values same, START and STOP?
     public static final String INTENT_START_SERVICE = "ca.idi.taginsdk.TaginURN";
     public static final String INTENT_STOP_SERVICE = "ca.idi.taginsdk.TaginURN";
 	
@@ -49,12 +53,12 @@ public class TaginURN extends Service implements Runnable {
 	public static final String EXTRA_NUMBER_OF_RUNS = "ca.idi.taginsdk.NUMBER_OF_RUNS";
     public static final int DEFAULT_NUMBER_OF_RUNS = 9999; //Default number of runs
 	public static final int DEFAULT_RUN_INTERVAL =9000; //Default interval between runs
-    
 	
 	private int mRunInterval, mNumberOfRuns, mRunCount;
     
 	@Override
 	public void onCreate() {
+		Parse.initialize(this, "VBRxjA8XuZ2CfdXNqtVX4txD51KWDqJ1P8zz8Q8l", "upAVSiLCuNiaCsiSq0ezeKfxWH5DARlbLg3RrTFq"); 
 		super.onCreate();
 		registerReceiver(mReceiver, new IntentFilter(Fingerprinter.ACTION_FINGERPRINT_CHANGED)); 
 		mHelper = Helper.getInstance();
@@ -66,6 +70,9 @@ public class TaginURN extends Service implements Runnable {
 		check = false; //Initializing it to false
 		THRESHOLD = 0.25; //TODO Pass it by intents?
 		mRunCount = 0;
+		ParseObject testObject = new ParseObject("TestObject");
+		testObject.put("foo", "bar");
+		testObject.saveInBackground();
 	}
 	
 	
@@ -241,29 +248,39 @@ public class TaginURN extends Service implements Runnable {
 	 */
 	private Fingerprint GetFingerprint(Long URNId){
 		String where1, where2;
-		Cursor c1, c2 = null;
+		Cursor c1 = null;
+		Cursor c2 = null;
 		Long beaconId;
+		Fingerprint fp = null;
 		where1 = TaginDatabase.FINGERPRINT_ID + "=" + URNId;
-		c1 = cr.query(TaginProvider.URN_FINGERPRINTS_DETAIL_URI, 
-													TaginProvider.FINGERPRINT_DETAIL_PROJECTION, where1, null, null);
-		
-		Fingerprint fp = new Fingerprint();
-		ArrayList<Beacon> uBeacons = new ArrayList<Beacon>();
-		if(c1.moveToFirst()){
-			do{
-				Beacon mBeacon = new Beacon();
-				mBeacon.setRank(c1.getDouble(c1.getColumnIndexOrThrow(TaginDatabase.RANK)));	
-				beaconId = c1.getLong(c1.getColumnIndexOrThrow(TaginDatabase.BEACON_ID));
-				where2 = TaginDatabase._ID + "=" + beaconId;
-				c2 = cr.query(TaginProvider.URN_BEACONS_URI, TaginProvider.BEACON_PROJECTION, where2, null, null);
-				if(c2.moveToFirst())
-					mBeacon.setBSSID(c2.getString(c2.getColumnIndexOrThrow(TaginDatabase.BSSID)));
-				uBeacons.add(mBeacon);
-			}while(c1.moveToNext());
-		}	
-		if(c2 !=null) c2.close();
-		if(c1 != null) c1.close();
-		fp.setBeacons(uBeacons.toArray(new Beacon[uBeacons.size()]));
+		try {
+			c1 = cr.query(TaginProvider.URN_FINGERPRINTS_DETAIL_URI, 
+					TaginProvider.FINGERPRINT_DETAIL_PROJECTION, where1, null, null);
+			fp = new Fingerprint();
+			ArrayList<Beacon> uBeacons = new ArrayList<Beacon>();
+			if(c1.moveToFirst()){
+				do{
+					Beacon mBeacon = new Beacon();
+					mBeacon.setRank(c1.getDouble(c1.getColumnIndexOrThrow(TaginDatabase.RANK)));	
+					beaconId = c1.getLong(c1.getColumnIndexOrThrow(TaginDatabase.BEACON_ID));
+					where2 = TaginDatabase._ID + "=" + beaconId;
+					c2 = cr.query(TaginProvider.URN_BEACONS_URI, TaginProvider.BEACON_PROJECTION, where2, null, null);
+					if(c2.moveToFirst())
+						mBeacon.setBSSID(c2.getString(c2.getColumnIndexOrThrow(TaginDatabase.BSSID)));
+					uBeacons.add(mBeacon);
+				}while(c1.moveToNext());
+			}
+			fp.setBeacons(uBeacons.toArray(new Beacon[uBeacons.size()]));
+		} catch(Exception ex) { 
+		    ex.printStackTrace();
+		} finally {
+		    try {
+		      if(c1 != null && !c1.isClosed())
+		        c1.close();
+		      if(c2 != null && !c2.isClosed())
+			        c2.close();
+		    } catch(Exception ex) {}
+		}
 		//Log.d(Helper.TAG, "GetFingerprint - URNID: " + URNId +  ", "+ "Fingerprint: " + printFP(fp));
 		return fp;
 	}
@@ -280,29 +297,40 @@ public class TaginURN extends Service implements Runnable {
 		Cursor fpc = null;
 		Beacon[] beacons = fp.getBeacons();
 		String where = TaginDatabase.BSSID + "=" + "?";
-		for(int i = 0; i < beacons.length; i++){
-			c = cr.query(TaginProvider.URN_BEACONS_URI, TaginProvider.BEACON_PROJECTION, where, 
-					new String[]{beacons[i].getBSSID()}, null);
-			if(c.moveToFirst()){
-				long rowId = c.getLong(c.getColumnIndexOrThrow(TaginDatabase._ID));
-				fpc = cr.query(TaginProvider.URN_FINGERPRINTS_DETAIL_URI, TaginProvider.FINGERPRINT_ID_PROJECTION,
-						TaginDatabase.BEACON_ID + "=" + rowId, null, null);
-				if(fpc.moveToFirst()){
-					do{				
- 						urn_id =  fpc.getLong(fpc.getColumnIndexOrThrow(TaginDatabase.FINGERPRINT_ID));
- 						if(NotAlreadyExistsURN(urn_id, NeighbourList)){
- 							Fingerprint temp_fp = GetFingerprint(urn_id);
- 							rankDistance = fp.rankDistanceTo(temp_fp, mHelper.getMaxRSSIEver(this));
-							NeighbourList.add(new Neighbour(urn_id, rankDistance));
-						}
-					}while(fpc.moveToNext());	
+		try {
+			for(int i = 0; i < beacons.length; i++){
+				c = cr.query(TaginProvider.URN_BEACONS_URI, TaginProvider.BEACON_PROJECTION, where, 
+						new String[]{beacons[i].getBSSID()}, null);
+				if(c.moveToFirst()){
+					long rowId = c.getLong(c.getColumnIndexOrThrow(TaginDatabase._ID));
+					fpc = cr.query(TaginProvider.URN_FINGERPRINTS_DETAIL_URI, TaginProvider.FINGERPRINT_ID_PROJECTION,
+							TaginDatabase.BEACON_ID + "=" + rowId, null, null);
+					if(fpc.moveToFirst()){
+						do{				
+	 						urn_id =  fpc.getLong(fpc.getColumnIndexOrThrow(TaginDatabase.FINGERPRINT_ID));
+	 						if(NotAlreadyExistsURN(urn_id, NeighbourList)){
+	 							Fingerprint temp_fp = GetFingerprint(urn_id);
+	 							rankDistance = fp.rankDistanceTo(temp_fp, mHelper.getMaxRSSIEver(this));
+								NeighbourList.add(new Neighbour(urn_id, rankDistance));
+							}
+						}while(fpc.moveToNext());	
+					}
 				}
+				else
+					continue;
 			}
-			else
-				continue;
+		} catch(Exception ex) { 
+		    ex.printStackTrace();
+		} finally {
+		    try {
+		      if(c != null && !c.isClosed())
+		        c.close();
+		    } catch(Exception ex) {}
+		    try {
+			      if(fpc != null && !fpc.isClosed())
+			        fpc.close();
+			    } catch(Exception ex) {}
 		}
-		if(c != null) c.close();
-		if(fpc != null) fpc.close();
 		check = true; //Setting flag to true to indicate Neighbours have been computed 
 		return NeighbourList.toArray(new Neighbour[NeighbourList.size()]);
 	}
@@ -364,11 +392,19 @@ public class TaginURN extends Service implements Runnable {
 	private String fetchURNfromDB(long urnId){
 		String urn = "No URN Present in DB"; 
 		String where = TaginDatabase._ID + "=" + urnId;
-		Cursor c = cr.query(TaginProvider.URN_FINGERPRINTS_URI, TaginProvider.URN_PROJECTION, where, null, null );
-		if(c.moveToFirst()){
-			urn = c.getString(c.getColumnIndexOrThrow(TaginDatabase.URN));
+		Cursor cursor = null;
+		try {
+			cursor = cr.query(TaginProvider.URN_FINGERPRINTS_URI, TaginProvider.URN_PROJECTION, where, null, null );
+			if(cursor.moveToFirst())
+				urn = cursor.getString(cursor.getColumnIndexOrThrow(TaginDatabase.URN));
+		} catch(Exception ex) { 
+		    ex.printStackTrace();
+		} finally {
+		    try {
+		      if(cursor != null && !cursor.isClosed())
+		        cursor.close();
+		    } catch(Exception ex) {}
 		}
-		c.close();
 		return urn;
 	}
 	
@@ -386,11 +422,20 @@ public class TaginURN extends Service implements Runnable {
 			addFPDetails(urn_id, beacon_id, ranks[i], TaginDatabase.URN_TABLES);
 		}
 		String where = TaginDatabase._ID + "=" + urn_id;
-		Cursor c = cr.query(TaginProvider.URN_FINGERPRINTS_URI, TaginProvider.URN_PROJECTION, where, null, null );
-		if(c.moveToFirst() && c.getCount() > 0){
-			mURN = c.getString(c.getColumnIndexOrThrow(TaginDatabase.URN));
+		Cursor c = null;
+		try {
+			c = cr.query(TaginProvider.URN_FINGERPRINTS_URI, TaginProvider.URN_PROJECTION, where, null, null );
+			if(c.moveToFirst() && c.getCount() > 0){
+				mURN = c.getString(c.getColumnIndexOrThrow(TaginDatabase.URN));
+			}
+		} catch(Exception ex) { 
+		    ex.printStackTrace();
+		} finally {
+		    try {
+		      if(c != null && !c.isClosed())
+		        c.close();
+		    } catch(Exception ex) {}
 		}
-		c.close();
 	}
 	
 	/*
@@ -432,21 +477,30 @@ public class TaginURN extends Service implements Runnable {
 	private long addRadio(String deviceId){
 		Uri uri;
 		String where = TaginDatabase.BSSID + "=" + "?";
-		long rowId;
-		Cursor c = cr.query(TaginProvider.RAW_RADIO_URI, TaginProvider.RADIO_PROJECTION, where, new String[]{deviceId}, null );
-		if(c.moveToFirst() && c.getCount() > 0){
-			rowId = c.getLong(c.getColumnIndexOrThrow(TaginDatabase._ID));
+		long rowId = 0;
+		Cursor cursor = null;
+		try {
+			cursor = cr.query(TaginProvider.RAW_RADIO_URI, TaginProvider.RADIO_PROJECTION, where, new String[]{deviceId}, null );
+			if(cursor.moveToFirst() && cursor.getCount() > 0){
+				rowId = cursor.getLong(cursor.getColumnIndexOrThrow(TaginDatabase._ID));
+			}
+			else{
+				ContentValues values = new ContentValues();
+				values.put(TaginDatabase.BSSID, deviceId);
+				values.put(TaginDatabase.RSSI_MAX_LIMIT, mHelper.getMaxRSSIEver(this));
+				values.put(TaginDatabase.RSSI_MIN_LIMIT, mHelper.getMinRSSIEver(this));
+				values.put(TaginDatabase.TYPE, TaginDatabase.WLAN);
+				uri = cr.insert(TaginProvider.RAW_RADIO_URI, values);
+				rowId = Long.parseLong(uri.getPathSegments().get(2));
+			}
+		} catch(Exception ex) { 
+		    ex.printStackTrace();
+		} finally {
+		    try {
+		      if(cursor != null && !cursor.isClosed())
+		        cursor.close();
+		    } catch(Exception ex) {}
 		}
-		else{
-			ContentValues values = new ContentValues();
-			values.put(TaginDatabase.BSSID, deviceId);
-			values.put(TaginDatabase.RSSI_MAX_LIMIT, mHelper.getMaxRSSIEver(this));
-			values.put(TaginDatabase.RSSI_MIN_LIMIT, mHelper.getMinRSSIEver(this));
-			values.put(TaginDatabase.TYPE, TaginDatabase.WLAN);
-			uri = cr.insert(TaginProvider.RAW_RADIO_URI, values);
-			rowId = Long.parseLong(uri.getPathSegments().get(2));
-		}
-		c.close();
 		return rowId;
 	}
 	
@@ -502,7 +556,7 @@ public class TaginURN extends Service implements Runnable {
 	private long addBeacon(String bssid, int type, int tables) {
 		Uri uri = null;
 		long rowId = 0;
-		Cursor c;
+		Cursor cursor = null;
 		ContentValues values = new ContentValues();
 		values.put(TaginDatabase.BSSID, bssid);
 		values.put(TaginDatabase.TYPE, type);
@@ -510,18 +564,26 @@ public class TaginURN extends Service implements Runnable {
 			uri = cr.insert(TaginProvider.RAW_BEACONS_URI, values);
 		else{ //In URN Contents, each beacon appears only at most once.
 			String where = TaginDatabase.BSSID + "=" + "?";
-			c = cr.query(TaginProvider.URN_BEACONS_URI, TaginProvider.BEACON_PROJECTION, where, new String[]{bssid}, null );
-			if(c.moveToFirst() && c.getCount() > 0){
-				rowId = c.getLong(c.getColumnIndexOrThrow(TaginDatabase._ID));
-				//Log.i(Helper.TAG, "Duplicate Found for beacon in URN Contents" + Long.toString(rowId));
+			try {
+				cursor = cr.query(TaginProvider.URN_BEACONS_URI, TaginProvider.BEACON_PROJECTION, where, new String[]{bssid}, null );
+				if(cursor.moveToFirst() && cursor.getCount() > 0){
+					rowId = cursor.getLong(cursor.getColumnIndexOrThrow(TaginDatabase._ID));
+					//Log.i(Helper.TAG, "Duplicate Found for beacon in URN Contents" + Long.toString(rowId));
+				}
+				else{
+					//Log.i(Helper.TAG, "Duplicate not found, Inserting");
+					uri = cr.insert(TaginProvider.URN_BEACONS_URI, values);
+				}
+			} catch(Exception ex) { 
+			    ex.printStackTrace();
+			} finally {
+			    try {
+			      if(cursor != null && !cursor.isClosed())
+			        cursor.close();
+			    } catch(Exception ex) {}
 			}
-			else{
-				//Log.i(Helper.TAG, "Duplicate not found, Inserting");
-				uri = cr.insert(TaginProvider.URN_BEACONS_URI, values);
-			}
-			c.close();
+			
 		}
-	
 		return (uri == null) ? rowId: Long.parseLong(uri.getPathSegments().get(2));
 	}
 	
